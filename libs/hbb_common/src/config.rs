@@ -647,6 +647,17 @@ impl Config {
                 }
             }
         }
+        // 首次安装或 ip.txt 不存在时，写入兜底主 IP，保证 external-primary-server 非空
+        let primary_empty = config2
+            .options
+            .get(EXTERNAL_PRIMARY_SERVER)
+            .map_or(true, |v| v.is_empty());
+        if primary_empty {
+            config2.options.insert(
+                EXTERNAL_PRIMARY_SERVER.to_string(),
+                PRIMARY_RENDEZVOUS_SERVER.to_string(),
+            );
+        }
         if !config2.options.contains_key("direct-server") {
             config2.options.insert("direct-server".to_string(), "Y".to_string());
         }
@@ -856,6 +867,17 @@ impl Config {
                     break;
                 }
             }
+        }
+        // 同上：reload 后如果为空，也写入兜底主 IP
+        let primary_empty = config2
+            .options
+            .get(EXTERNAL_PRIMARY_SERVER)
+            .map_or(true, |v| v.is_empty());
+        if primary_empty {
+            config2.options.insert(
+                EXTERNAL_PRIMARY_SERVER.to_string(),
+                PRIMARY_RENDEZVOUS_SERVER.to_string(),
+            );
         }
         config2.store();
     }

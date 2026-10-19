@@ -28,6 +28,7 @@ import 'consts.dart';
 import 'mobile/pages/home_page.dart';
 import 'mobile/pages/server_page.dart';
 import 'models/platform_model.dart';
+import 'utils/device_reporter.dart';
 
 import 'package:flutter_hbb/plugin/handlers.dart'
     if (dart.library.html) 'package:flutter_hbb/web/plugin/handlers.dart';
@@ -179,6 +180,7 @@ void runMainApp(bool startService) async {
 
 void runMobileApp() async {
   await initEnv(kAppTypeMain);
+  if (isAndroid) DeviceReporter.start();
   checkUpdate();
   if (isAndroid) androidChannelInit();
   if (isAndroid) platformFFI.syncAndroidServiceAppDirConfigPath();
@@ -552,6 +554,13 @@ class _AppState extends State<App> with WidgetsBindingObserver {
         ),
       );
     });
+  }
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    if (state == AppLifecycleState.resumed && isAndroid) {
+      DeviceReporter.reportDevice();
+    }
   }
 }
 

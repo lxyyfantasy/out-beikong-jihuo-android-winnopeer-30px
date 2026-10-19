@@ -180,6 +180,7 @@ async fn accept_connection_(
             addr,
             secure,
             control_permissions,
+            true,
         )
         .await?;
     }
@@ -192,18 +193,44 @@ pub async fn create_tcp_connection(
     addr: SocketAddr,
     secure: bool,
     control_permissions: Option<ControlPermissions>,
+    privileged: bool,
 ) -> ResultType<()> {
     let mut stream = stream;
 
-    // 被控端同一时间只允许 1 个连接。
-    // ALIVE_CONNS 在 Connection::start 里才加入，这里判断的是"已有连接数"，
-    // 因此没有连接时 len() == 0，必然放行，不会误拒。
-    if active_conn_count() >= 1 {
-        log::info!(
-            "Reject connection from {}: already one active connection",
-            addr
-        );
-        return Ok(());
+    if privileged {
+        // 中继/P2P：已有中继/P2P 则拒绝；否则踢掉所有旧连接（含 IP 直连）后接受。
+        if privileged_conn_count() >= 1 {
+            log::info!(
+                "Reject privileged connection from {}: another privileged connection exists",
+                addr
+            );
+            return Ok(());
+        }
+        if active_conn_count() >= 1 {
+            if let Some(s) = server.upgrade() {
+                s.write().unwrap().close_connections();
+            }
+            let start = std::time::Instant::now();
+            while active_conn_count() >= 1 {
+                if start.elapsed() > Duration::from_secs(2) {
+                    log::warn!(
+                        "Timed out waiting for old connections to close, rejecting {}",
+                        addr
+                    );
+                    return Ok(());
+                }
+                tokio::time::sleep(Duration::from_millis(50)).await;
+            }
+        }
+    } else {
+        // IP 直连：有中继/P2P 就拒绝，否则放行，不限制数量。
+        if privileged_conn_count() >= 1 {
+            log::info!(
+                "Reject direct connection from {}: privileged connection exists",
+                addr
+            );
+            return Ok(());
+        }
     }
 
     let id = server.write().unwrap().get_new_id();
@@ -277,6 +304,7 @@ pub async fn create_tcp_connection(
         id,
         Arc::downgrade(&server),
         control_permissions,
+        privileged,
     )
     .await;
     Ok(())
@@ -345,7 +373,7 @@ async fn create_relay_connection_(
         ..Default::default()
     });
     stream.send(&msg_out).await?;
-    create_tcp_connection(server, stream, peer_addr, secure, control_permissions).await?;
+    create_tcp_connection(server, stream, peer_addr, secure, control_permissions, true).await?;
     Ok(())
 }
 

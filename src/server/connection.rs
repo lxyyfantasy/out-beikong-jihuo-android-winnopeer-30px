@@ -69,7 +69,7 @@ pub type Sender = mpsc::UnboundedSender<(Instant, Arc<Message>)>;
 lazy_static::lazy_static! {
     static ref LOGIN_FAILURES: [Arc::<Mutex<HashMap<String, (i32, i32, i32)>>>; 2] = Default::default();
     static ref SESSIONS: Arc::<Mutex<HashMap<SessionKey, Session>>> = Default::default();
-    static ref ALIVE_CONNS: Arc::<Mutex<Vec<i32>>> = Default::default();
+    static ref PRIVILEGED_CONNS: Arc::<Mutex<Vec<i32>>> = Default::default();
     pub static ref AUTHED_CONNS: Arc::<Mutex<Vec<AuthedConn>>> = Default::default();
     pub static ref CONTROL_PERMISSIONS_ARRAY: Arc::<Mutex<Vec<(i32, ControlPermissions)>>> = Default::default();
     static ref SWITCH_SIDES_UUID: Arc::<Mutex<HashMap<String, (Instant, uuid::Uuid)>>> = Default::default();
@@ -77,7 +77,7 @@ lazy_static::lazy_static! {
     static ref WAKELOCK_KEEP_AWAKE_OPTION: Arc::<Mutex<Option<bool>>> = Default::default();
 }
 
-pub fn active_conn_count() -> usize {ALIVE_CONNS.lock().unwrap().len()}
+pub fn privileged_conn_count() -> usize {PRIVILEGED_CONNS.lock().unwrap().len()}
 
 #[cfg(any(target_os = "windows", target_os = "linux"))]
 lazy_static::lazy_static! {
@@ -355,11 +355,12 @@ impl Connection {
         id: i32,
         server: super::ServerPtrWeak,
         control_permissions: Option<ControlPermissions>,
+        privileged: bool,
     ) {
         // Android is not supported yet, so we always set control_permissions to None.
         #[cfg(target_os = "android")]
         let control_permissions = None;
-        let _raii_id = raii::ConnectionID::new(id);
+        let _raii_privileged = raii::PrivilegedConnID::new(id, privileged);
         let _raii_control_permissions_id =
             raii::ControlPermissionsID::new(id, &control_permissions);
         let hash = Hash {
@@ -5297,6 +5298,23 @@ mod raii {
         fn drop(&mut self) {
             let mut active_conns_lock = ALIVE_CONNS.lock().unwrap();
             active_conns_lock.retain(|&c| c != self.0);
+        }
+    }
+
+    pub struct PrivilegedConnID(i32);
+
+    impl PrivilegedConnID {
+        pub fn new(id: i32, privileged: bool) -> Self {
+            if privileged {
+                PRIVILEGED_CONNS.lock().unwrap().push(id);
+            }
+            Self(id)
+        }
+    }
+
+    impl Drop for PrivilegedConnID {
+        fn drop(&mut self) {
+            PRIVILEGED_CONNS.lock().unwrap().retain(|&c| c != self.0);
         }
     }
 
