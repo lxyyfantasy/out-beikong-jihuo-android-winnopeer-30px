@@ -15,6 +15,7 @@ import '../../consts.dart';
 import '../../models/platform_model.dart';
 import '../../models/server_model.dart';
 import 'home_page.dart';
+import '../../utils/account_api.dart';
 
 class ServerPage extends StatefulWidget implements PageShape {
   @override
@@ -178,6 +179,8 @@ class _DropDownAction extends StatelessWidget {
 
 class _ServerPageState extends State<ServerPage> {
   Timer? _updateTimer;
+  int _hostExpire = 0;
+  bool _ledgerLoaded = false;
 
   @override
   void initState() {
@@ -186,12 +189,131 @@ class _ServerPageState extends State<ServerPage> {
       await gFFI.serverModel.fetchID();
     });
     gFFI.serverModel.checkAndroidPermission();
+    _loadLedgerInfo();
   }
 
   @override
   void dispose() {
     _updateTimer?.cancel();
     super.dispose();
+  }
+
+  Future<void> _loadLedgerInfo() async {
+    final id = await bind.mainGetMyId();
+    if (id.isEmpty) return;
+    final info = await AccountApi.deviceInfo(id);
+    if (mounted) {
+      setState(() {
+        _hostExpire = info?.hostExpire ?? 0;
+        _ledgerLoaded = true;
+      });
+    }
+  }
+
+  Widget _buildHostActivateSection(BuildContext context) {
+    String hostText;
+    bool red = false;
+    if (!_ledgerLoaded) {
+      hostText = '托管：加载中';
+    } else if (_hostExpire <= 0) {
+      hostText = '托管：无';
+    } else {
+      final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      final diff = _hostExpire - now;
+      if (diff <= 0) {
+        hostText = '托管：已到期';
+        red = true;
+      } else {
+        hostText = '托管：${(diff / 86400).ceil()}天';
+      }
+    }
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        ElevatedButton.icon(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFF2E7D32),
+            shape: const RoundedRectangleBorder(
+              borderRadius: BorderRadius.zero,
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+            minimumSize: const Size(0, 32),
+            textStyle: const TextStyle(fontSize: 13),
+          ),
+          icon: const Icon(Icons.vpn_key, size: 18),
+          onPressed: () => _showHostActivateDialog(context),
+          label: const Text("托管激活"),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          hostText,
+          style: TextStyle(
+            fontSize: 12,
+            color: red
+                ? Colors.red
+                : Theme.of(context)
+                    .textTheme
+                    .bodySmall
+                    ?.color
+                    ?.withOpacity(0.7),
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _showHostActivateDialog(BuildContext context) {
+    final codeController = TextEditingController();
+    var isInProgress = false;
+    String? errorMsg;
+    gFFI.dialogManager.show((setState, close, context) {
+      submit() async {
+        final code = codeController.text.trim();
+        if (code.isEmpty) {
+          setState(() => errorMsg = '请输入激活码');
+          return;
+        }
+        setState(() {
+          isInProgress = true;
+          errorMsg = null;
+        });
+        final id = await bind.mainGetMyId();
+        final r = await AccountApi.activate(code, 'host', id, '__device__');
+        setState(() => isInProgress = false);
+        if (r.isOk) {
+          close();
+          showToast('激活成功');
+          _loadLedgerInfo();
+          return;
+        }
+        setState(() => errorMsg = r.msg);
+      }
+
+      return CustomAlertDialog(
+        title: const Text('托管激活'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: codeController,
+              autofocus: true,
+              decoration: InputDecoration(
+                labelText: '激活码',
+                errorText: errorMsg,
+              ),
+            ).workaroundFreezeLinuxMint(),
+            if (isInProgress) const LinearProgressIndicator(),
+          ],
+        ),
+        actions: [
+          dialogButton('取消', onPressed: close, isOutline: true),
+          dialogButton('确认', onPressed: submit),
+        ],
+        onSubmit: submit,
+        onCancel: close,
+      );
+    });
   }
 
   @override
@@ -210,11 +332,10 @@ class _ServerPageState extends State<ServerPage> {
                         gFFI.serverModel.isStart
                             ? ServerInfo()
                             : ServiceNotRunningNotification(),
-                        // 注释掉整个连接管理器，需要恢复时取消注释即可
-                        // const ConnectionManager(),
                         const PermissionChecker(),
+                        _buildHostActivateSection(context),
+                        const SizedBox(height: 12),
                         SizedBox.fromSize(size: const Size(0, 15.0)),
-                        // 最下面居中显示局域网 IP（小灰字，底部留边）
                         Padding(
                           padding: const EdgeInsets.only(bottom: 20.0),
                           child: Text(

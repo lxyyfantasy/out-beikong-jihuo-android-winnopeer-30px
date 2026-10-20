@@ -78,6 +78,7 @@ lazy_static::lazy_static! {
 }
 
 pub fn privileged_conn_count() -> usize {PRIVILEGED_CONNS.lock().unwrap().len()}
+pub fn active_conn_count() -> usize {ALIVE_CONNS.lock().unwrap().len()}
 
 #[cfg(any(target_os = "windows", target_os = "linux"))]
 lazy_static::lazy_static! {

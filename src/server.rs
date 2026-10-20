@@ -207,9 +207,7 @@ pub async fn create_tcp_connection(
             return Ok(());
         }
         if active_conn_count() >= 1 {
-            if let Some(s) = server.upgrade() {
-                s.write().unwrap().close_connections();
-            }
+            server.write().unwrap().close_connections();
             let start = std::time::Instant::now();
             while active_conn_count() >= 1 {
                 if start.elapsed() > Duration::from_secs(2) {
