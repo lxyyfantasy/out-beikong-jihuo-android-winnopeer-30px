@@ -75,6 +75,7 @@ lazy_static::lazy_static! {
     static ref SWITCH_SIDES_UUID: Arc::<Mutex<HashMap<String, (Instant, uuid::Uuid)>>> = Default::default();
     static ref WAKELOCK_SENDER: Arc::<Mutex<std::sync::mpsc::Sender<(usize, usize)>>> = Arc::new(Mutex::new(start_wakelock_thread()));
     static ref WAKELOCK_KEEP_AWAKE_OPTION: Arc::<Mutex<Option<bool>>> = Default::default();
+    static ref ALIVE_CONNS: Arc::<Mutex<Vec<i32>>> = Default::default();
 }
 
 pub fn privileged_conn_count() -> usize {PRIVILEGED_CONNS.lock().unwrap().len()}
@@ -361,6 +362,7 @@ impl Connection {
         // Android is not supported yet, so we always set control_permissions to None.
         #[cfg(target_os = "android")]
         let control_permissions = None;
+        let _raii_conn_id = raii::ConnectionID::new(id);          // ← 加这一行
         let _raii_privileged = raii::PrivilegedConnID::new(id, privileged);
         let _raii_control_permissions_id =
             raii::ControlPermissionsID::new(id, &control_permissions);
