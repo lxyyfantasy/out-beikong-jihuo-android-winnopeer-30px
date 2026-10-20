@@ -15,7 +15,7 @@ import '../../consts.dart';
 import '../../models/platform_model.dart';
 import '../../models/server_model.dart';
 import 'home_page.dart';
-import '../../utils/account_api.dart';
+import '../../common/widgets/account_api.dart';
 
 class ServerPage extends StatefulWidget implements PageShape {
   @override
