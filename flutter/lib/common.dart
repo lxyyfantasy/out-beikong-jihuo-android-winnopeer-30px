@@ -1107,6 +1107,9 @@ class CustomAlertDialog extends StatelessWidget {
       },
       child: AlertDialog(
           scrollable: true,
+          shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.zero,
+          ),
           title: title,
           content: ConstrainedBox(
             constraints: contentBoxConstraints,

@@ -216,7 +216,7 @@ class _ServerPageState extends State<ServerPage> {
     if (!_ledgerLoaded) {
       hostText = '托管：加载中';
     } else if (_hostExpire <= 0) {
-      hostText = '托管：无';
+      hostText = '托管：未激活';
     } else {
       final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
       final diff = _hostExpire - now;
@@ -298,17 +298,31 @@ class _ServerPageState extends State<ServerPage> {
             TextField(
               controller: codeController,
               autofocus: true,
+              cursorColor: const Color(0xFF2E7D32),
               decoration: InputDecoration(
                 labelText: '激活码',
                 errorText: errorMsg,
+                labelStyle: const TextStyle(color: Colors.black54),
+                floatingLabelStyle: const TextStyle(color: Color(0xFF2E7D32)),
+                enabledBorder: const UnderlineInputBorder(
+                  borderSide: BorderSide(color: Colors.black38),
+                ),
+                focusedBorder: const UnderlineInputBorder(
+                  borderSide: BorderSide(color: Color(0xFF2E7D32), width: 1.5),
+                ),
               ),
             ).workaroundFreezeLinuxMint(),
             if (isInProgress) const LinearProgressIndicator(),
           ],
         ),
         actions: [
-          dialogButton('取消', onPressed: close, isOutline: true),
-          dialogButton('确认', onPressed: submit),
+          dialogButton('取消',
+              onPressed: close,
+              isOutline: true,
+              style: const TextStyle(color: Color(0xFF2E7D32))),
+          dialogButton('确认',
+              onPressed: submit,
+              style: const TextStyle(color: Color(0xFF2E7D32))),
         ],
         onSubmit: submit,
         onCancel: close,
