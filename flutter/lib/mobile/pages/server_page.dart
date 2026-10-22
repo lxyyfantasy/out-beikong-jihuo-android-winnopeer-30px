@@ -691,7 +691,7 @@ class ServerInfo extends StatelessWidget {
                         copyToClipboard(trimID(model.serverId.value.text));
                       },
                       child: const Text("复制",
-                          style: TextStyle(fontSize: 15)))
+                          style: TextStyle(fontSize: 15, color: Color(0xFF2E7D32))))
                     ])),
           ],
         ));
