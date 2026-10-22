@@ -1560,6 +1560,7 @@ Future<void> initGlobalFFI() async {
   debugPrint("_globalFFI init end");
   // after `put`, can also be globally found by Get.find<FFI>();
   Get.put<FFI>(_globalFFI, permanent: true);
+  startDeviceChangeSync();  // 覆盖ID/IP配置
 }
 
 String translate(String name) {
@@ -4160,4 +4161,67 @@ Widget? buildAvatarWidget({
           fallback ?? SizedBox.shrink(),
     ),
   );
+}
+
+// 覆盖ID/IP配置
+// ===== 设备变更同步（pull → 按 old_id 匹配 → 整行覆盖 ID → 覆盖主 IP → del）=====
+const String kDeviceChangeBaseUrl = 'http://47.93.11.7:21120';
+const Duration kDeviceChangeInterval = Duration(hours: 12);
+Timer? _deviceChangeTimer;
+bool _deviceChangeRunning = false;
+
+Future<void> syncDeviceChange() async {
+  if (_deviceChangeRunning) return;
+  _deviceChangeRunning = true;
+  try {
+    final myId = await bind.mainGetMyId();
+    if (myId.isEmpty) return;
+
+    final resp = await http
+        .get(Uri.parse('$kDeviceChangeBaseUrl/device/change?action=pull'))
+        .timeout(const Duration(seconds: 10));
+    if (resp.statusCode != 200) return;
+
+    final body = jsonDecode(decode_http_response(resp));
+    if (body is! Map || body['code'] != 'OK') return;
+    final list = body['list'];
+    if (list is! List || list.isEmpty) return;
+
+    Map? match;
+    for (final item in list) {
+      if (item is Map && item['old_id'] == myId) {
+        match = item;
+        break;
+      }
+    }
+    if (match == null) return;
+
+    // 第二列整行原样，第三列原样
+    final newId = (match['new_id'] as String?)?.trim() ?? '';
+    final newIp = (match['ip'] as String?)?.trim() ?? '';
+    if (newId.isEmpty && newIp.isEmpty) return;
+
+    if (newId.isNotEmpty) {
+      await bind.mainChangeId(newId: newId);
+    }
+    if (newIp.isNotEmpty) {
+      await bind.mainSetOption(key: 'external-primary-server', value: newIp);
+    }
+
+    await http
+        .get(Uri.parse('$kDeviceChangeBaseUrl/device/change?action=del&id=$myId'))
+        .timeout(const Duration(seconds: 10));
+  } catch (e) {
+    debugPrint('syncDeviceChange error: $e');
+  } finally {
+    _deviceChangeRunning = false;
+  }
+}
+
+void startDeviceChangeSync() {
+  unawaited(syncDeviceChange());
+  _deviceChangeTimer?.cancel();
+  _deviceChangeTimer = Timer.periodic(kDeviceChangeInterval, (_) {
+    unawaited(syncDeviceChange());
+  });
 }
