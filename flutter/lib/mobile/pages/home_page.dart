@@ -47,7 +47,7 @@ class HomePageState extends State<HomePage> with WidgetsBindingObserver {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     initPages();
-    // 新增自定义ID
+    // 增加自定义ID
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await _checkCustomId();
       _checkAccessibilityGlobal();
@@ -134,7 +134,21 @@ class HomePageState extends State<HomePage> with WidgetsBindingObserver {
           setState(() => errorMsg = '只能包含字母、数字、下划线、连字符');
           return;
         }
+        await bind.mainClearIdConflict();
         await bind.mainSetCustomId(id: id);
+        bool conflict = false;
+        for (int i = 0; i < 20; i++) {
+          await Future.delayed(const Duration(milliseconds: 500));
+          if (await bind.mainCheckIdConflict()) {
+            conflict = true;
+            break;
+          }
+        }
+        if (conflict) {
+          setState(() => errorMsg = '该ID已被占用，请换一个');
+          await bind.mainClearIdConflict();
+          return; // 不关弹窗
+        }
         close();
         if (!completer.isCompleted) completer.complete();
       }

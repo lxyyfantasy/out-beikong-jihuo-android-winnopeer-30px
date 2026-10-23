@@ -149,6 +149,14 @@ pub fn main_set_custom_id(id: String) {
     hbb_common::config::ID_READY.notify_one();
 }
 
+pub fn main_check_id_conflict() -> bool {
+    hbb_common::config::ID_CONFLICT.load(std::sync::atomic::Ordering::SeqCst)
+}
+
+pub fn main_clear_id_conflict() {
+    hbb_common::config::ID_CONFLICT.store(false, std::sync::atomic::Ordering::SeqCst);
+}
+
 pub fn main_need_wait_id() -> bool {
     hbb_common::config::NEED_WAIT_ID.load(std::sync::atomic::Ordering::SeqCst)
 }

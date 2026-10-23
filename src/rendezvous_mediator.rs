@@ -703,7 +703,10 @@ impl RendezvousMediator {
             if solving.is_empty() || *solving == self.host {
                 log::info!("UUID_MISMATCH received from {}", self.host);
                 Config::set_key_confirmed(false);
-                Config::update_id();
+                // 增加自定义ID
+				hbb_common::config::ID_CONFLICT.store(true, std::sync::atomic::Ordering::SeqCst);
+                // 增加自定义ID
+                hbb_common::config::ID_READY.notify_one();
                 *solving = self.host.clone();
             } else {
                 return Ok(());
