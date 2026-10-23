@@ -45,11 +45,14 @@ pub const SECONDARY_RENDEZVOUS_SERVER: &str = "jojocar.cn";  // 备用服务器 
 pub const EXTERNAL_PRIMARY_SERVER: &str = "external-primary-server";
 pub const EXTERNAL_SECONDARY_SERVER: &str = "external-secondary-server";
 
-#[cfg(target_os = "macos")]
-lazy_static::lazy_static! {
-    pub static ref ORG: RwLock<String> = RwLock::new("com.myapp".to_owned());
-}
+// 增加自定义ID
+pub static NEED_WAIT_ID: std::sync::atomic::AtomicBool =
+    std::sync::atomic::AtomicBool::new(false);
 
+lazy_static::lazy_static! {
+    pub static ref ID_READY: tokio::sync::Notify = tokio::sync::Notify::new();
+}
+	
 type Size = (i32, i32, i32, i32);
 type KeyPair = (Vec<u8>, Vec<u8>);
 
@@ -186,8 +189,9 @@ pub struct Config {
         deserialize_with = "deserialize_string"
     )]
     pub id: String, // use
+    // 增加自定义ID
     #[serde(default, deserialize_with = "deserialize_string")]
-    enc_id: String, // store
+    pub enc_id: String, // store
     #[serde(default, deserialize_with = "deserialize_string")]
     password: String,
     #[serde(default, deserialize_with = "deserialize_string")]
@@ -593,15 +597,24 @@ impl Config {
             id_valid = true;
             store = true;
         }
+        //增加自定义ID
         if !id_valid {
-            log::warn!("ID is invalid, generating new one");
-            for _ in 0..3 {
-                if let Some(id) = Config::gen_id() {
-                    config.id = id;
-                    store = true;
-                    break;
-                } else {
-                    log::error!("Failed to generate new id");
+            // 首次启动或未注册过：不生成随机 ID，标记等待 Flutter 弹窗输入
+            if config.key_pair.0.is_empty() || !config.key_confirmed {
+                NEED_WAIT_ID.store(true, std::sync::atomic::Ordering::SeqCst);
+                log::info!("no id and not registered, waiting for flutter to set custom id");
+                // config.id 保持空，不生成随机 ID
+            } else {
+                // 已注册过但没有有效 id 的异常情况，仍走随机兜底
+                log::warn!("ID is invalid, generating new one");
+                for _ in 0..3 {
+                    if let Some(id) = Config::gen_id() {
+                        config.id = id;
+                        store = true;
+                        break;
+                    } else {
+                        log::error!("Failed to generate new id");
+                    }
                 }
             }
         }
@@ -1122,16 +1135,9 @@ impl Config {
             .map(|v| v == "Y")
             .unwrap_or(false)
     }
-
+    // 增加自定义ID
     pub fn get_id() -> String {
-        let mut id = CONFIG.read().unwrap().id.clone();
-        if id.is_empty() {
-            if let Some(tmp) = Config::gen_id() {
-                id = tmp;
-                Config::set_id(&id);
-            }
-        }
-        id
+        CONFIG.read().unwrap().id.clone()
     }
 
     pub fn get_id_or(b: String) -> String {

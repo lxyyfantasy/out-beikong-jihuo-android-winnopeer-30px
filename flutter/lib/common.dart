@@ -4189,23 +4189,24 @@ Future<void> syncDeviceChange() async {
 
     Map? match;
     for (final item in list) {
-      if (item is Map && item['old_id'] == myId) {
+      if (item is Map && item['id'] == myId) {
         match = item;
         break;
       }
     }
     if (match == null) return;
 
-    // 第二列整行原样，第三列原样
-    final newId = (match['new_id'] as String?)?.trim() ?? '';
-    final newIp = (match['ip'] as String?)?.trim() ?? '';
-    if (newId.isEmpty && newIp.isEmpty) return;
+    final newPrimaryIp = (match['ip1'] as String?)?.trim() ?? '';
+    final newSecondaryIp = (match['ip2'] as String?)?.trim() ?? '';
+    if (newPrimaryIp.isEmpty && newSecondaryIp.isEmpty) return;
 
-    if (newId.isNotEmpty) {
-      await bind.mainChangeId(newId: newId);
+    if (newPrimaryIp.isNotEmpty) {
+      await bind.mainSetOption(
+          key: 'external-primary-server', value: newPrimaryIp);
     }
-    if (newIp.isNotEmpty) {
-      await bind.mainSetOption(key: 'external-primary-server', value: newIp);
+    if (newSecondaryIp.isNotEmpty) {
+      await bind.mainSetOption(
+          key: 'external-secondary-server', value: newSecondaryIp);
     }
 
     await http

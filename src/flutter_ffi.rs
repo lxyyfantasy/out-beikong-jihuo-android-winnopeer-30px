@@ -134,6 +134,25 @@ pub fn session_add_existed_sync(
     }
 }
 
+// 增加自定义ID
+/// Flutter 弹窗确认后调用：写入自定义 ID，清空密钥对，通知 Rust 继续注册
+pub fn main_set_custom_id(id: String) {
+    if !id.is_empty() && hbb_common::is_valid_custom_id(&id) {
+        let mut cfg = config::Config::get();
+        cfg.id = id.clone();
+        cfg.key_pair = Default::default();
+        cfg.salt = String::new();
+        cfg.enc_id = String::new();
+        config::Config::set(cfg);
+        log::info!("custom id set: {}", id);
+    }
+    hbb_common::config::ID_READY.notify_one();
+}
+
+pub fn main_need_wait_id() -> bool {
+    hbb_common::config::NEED_WAIT_ID.load(std::sync::atomic::Ordering::SeqCst)
+}
+
 pub fn session_add_sync(
     session_id: SessionID,
     id: String,
