@@ -139,10 +139,7 @@ pub fn session_add_existed_sync(
 pub fn main_set_custom_id(id: String) {
     if !id.is_empty() && hbb_common::is_valid_custom_id(&id) {
         let mut cfg = config::Config::get();
-        cfg.id = id.clone();
-        cfg.key_pair = Default::default();
-        cfg.salt = String::new();
-        cfg.enc_id = String::new();
+        cfg.set_custom_id_with_keypair(&id);
         config::Config::set(cfg);
         log::info!("custom id set: {}", id);
     }

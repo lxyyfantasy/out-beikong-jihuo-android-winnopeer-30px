@@ -49,10 +49,10 @@ class HomePageState extends State<HomePage> with WidgetsBindingObserver {
     initPages();
     // 增加自定义ID
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      await _checkCustomId();
-      _checkAccessibilityGlobal();
       // 增加拉取key
       unawaited(fetchAndSaveKey());
+      await _checkCustomId();
+      _checkAccessibilityGlobal();  
     });
   }
   
@@ -117,8 +117,11 @@ class HomePageState extends State<HomePage> with WidgetsBindingObserver {
     final completer = Completer<void>();
     final controller = TextEditingController();
     String? errorMsg;
+    bool submitting = false;
+  
     gFFI.dialogManager.show((setState, close, context) {
       submit() async {
+        if (submitting) return;
         final id = controller.text.trim();
         if (id.isEmpty) {
           setState(() => errorMsg = '请输入ID');
@@ -136,21 +139,12 @@ class HomePageState extends State<HomePage> with WidgetsBindingObserver {
           setState(() => errorMsg = '只能包含字母、数字、下划线、连字符');
           return;
         }
+        setState(() {
+          submitting = true;
+          errorMsg = null;
+        });
         await bind.mainClearIdConflict();
         await bind.mainSetCustomId(id: id);
-        bool conflict = false;
-        for (int i = 0; i < 20; i++) {
-          await Future.delayed(const Duration(milliseconds: 500));
-          if (await bind.mainCheckIdConflict()) {
-            conflict = true;
-            break;
-          }
-        }
-        if (conflict) {
-          setState(() => errorMsg = '该ID已被占用，请换一个');
-          await bind.mainClearIdConflict();
-          return; // 不关弹窗
-        }
         close();
         if (!completer.isCompleted) completer.complete();
       }
@@ -185,24 +179,12 @@ class HomePageState extends State<HomePage> with WidgetsBindingObserver {
           ],
         ),
         actions: [
-          dialogButton('取消',
-              onPressed: () {
-                bind.mainSetCustomId(id: '');
-                close();
-                if (!completer.isCompleted) completer.complete();
-              },
-              isOutline: true,
-              style: const TextStyle(color: Color(0xFF2E7D32))),
           dialogButton('确认',
               onPressed: submit,
               style: const TextStyle(color: Color(0xFF2E7D32))),
         ],
         onSubmit: submit,
-        onCancel: () {
-          bind.mainSetCustomId(id: '');
-          close();
-          if (!completer.isCompleted) completer.complete();
-        },
+        onCancel: () {},
       );
     }, backDismiss: false, clickMaskDismiss: false);
     return completer.future;

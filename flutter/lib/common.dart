@@ -920,7 +920,7 @@ class OverlayDialogManager {
                                   onPressed: cancel,
                                   child: Text(translate('Cancel'),
                                       style: const TextStyle(
-                                          color: MyTheme.accent)))))
+                                          color: MyTheme.accent)))))),
                 ])),
         onCancel: showCancel ? cancel : null,
       );

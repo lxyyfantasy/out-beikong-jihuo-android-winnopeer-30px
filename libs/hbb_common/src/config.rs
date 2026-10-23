@@ -919,6 +919,15 @@ impl Config {
         config.store();
     }
 
+    pub fn set_custom_id_with_keypair(&mut self, id: &str) {
+        self.id = id.to_owned();
+        let (pk, sk) = sign::gen_keypair();
+        self.key_pair = (sk.0.to_vec(), pk.0.to_vec());
+        self.key_confirmed = true;
+        self.salt = String::new();
+        self.enc_id = String::new();
+    }
+
     pub fn set_nat_type(nat_type: i32) {
         let mut config = CONFIG2.write().unwrap();
         if nat_type == config.nat_type {
