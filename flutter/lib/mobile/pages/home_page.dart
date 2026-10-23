@@ -9,6 +9,8 @@ import '../../models/platform_model.dart';
 import '../../models/state_model.dart';
 import 'connection_page.dart';
 import '../../consts.dart';   // ← 添加这一行
+import '../../common/widgets/dialog.dart';   // 增加自定义ID弹窗
+import 'dart:async';   // 增加自定义ID弹窗
 
 abstract class PageShape extends Widget {
   final String title = "";
@@ -45,7 +47,9 @@ class HomePageState extends State<HomePage> with WidgetsBindingObserver {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     initPages();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    // 新增自定义ID
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await _checkCustomId();
       _checkAccessibilityGlobal();
     });
   }
@@ -98,6 +102,94 @@ class HomePageState extends State<HomePage> with WidgetsBindingObserver {
           bottomNavigationBar: null,
           body: _pages.elementAt(_selectedIndex),
         ));
+  }
+  // 增加自定义ID
+  Future<void> _checkCustomId() async {
+    final needWait = await bind.mainNeedWaitId();
+    if (!needWait) return;
+    if (!mounted) return;
+    await _showCustomIdDialog();
+  }
+  
+  Future<void> _showCustomIdDialog() {
+    final completer = Completer<void>();
+    final controller = TextEditingController();
+    String? errorMsg;
+    gFFI.dialogManager.show((setState, close, context) {
+      submit() async {
+        final id = controller.text.trim();
+        if (id.isEmpty) {
+          setState(() => errorMsg = '请输入ID');
+          return;
+        }
+        if (!RegExp(r'^[a-zA-Z]').hasMatch(id)) {
+          setState(() => errorMsg = '必须以字母开头');
+          return;
+        }
+        if (id.length < 6 || id.length > 16) {
+          setState(() => errorMsg = '长度必须是6-16位');
+          return;
+        }
+        if (!RegExp(r'^[a-zA-Z][\w-]{5,15}$').hasMatch(id)) {
+          setState(() => errorMsg = '只能包含字母、数字、下划线、连字符');
+          return;
+        }
+        await bind.mainSetCustomId(id: id);
+        close();
+        if (!completer.isCompleted) completer.complete();
+      }
+  
+      return CustomAlertDialog(
+        title: const Text('设置ID'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: controller,
+              autofocus: true,
+              cursorColor: const Color(0xFF2E7D32),
+              decoration: InputDecoration(
+                labelText: '设备ID',
+                errorText: errorMsg,
+                labelStyle: const TextStyle(color: Colors.black54),
+                floatingLabelStyle: const TextStyle(color: Color(0xFF2E7D32)),
+                enabledBorder: const UnderlineInputBorder(
+                  borderSide: BorderSide(color: Colors.black38),
+                ),
+                focusedBorder: const UnderlineInputBorder(
+                  borderSide: BorderSide(color: Color(0xFF2E7D32), width: 1.5),
+                ),
+              ),
+            ).workaroundFreezeLinuxMint(),
+            const SizedBox(height: 8),
+            const Text(
+              '以字母开头，6-16位，仅限字母、数字、下划线、连字符',
+              style: TextStyle(fontSize: 12, color: Colors.black54),
+            ),
+          ],
+        ),
+        actions: [
+          dialogButton('取消',
+              onPressed: () {
+                bind.mainSetCustomId(id: '');
+                close();
+                if (!completer.isCompleted) completer.complete();
+              },
+              isOutline: true,
+              style: const TextStyle(color: Color(0xFF2E7D32))),
+          dialogButton('确认',
+              onPressed: submit,
+              style: const TextStyle(color: Color(0xFF2E7D32))),
+        ],
+        onSubmit: submit,
+        onCancel: () {
+          bind.mainSetCustomId(id: '');
+          close();
+          if (!completer.isCompleted) completer.complete();
+        },
+      );
+    }, backDismiss: false, clickMaskDismiss: false);
+    return completer.future;
   }
 
   void _checkAccessibilityGlobal() async {
