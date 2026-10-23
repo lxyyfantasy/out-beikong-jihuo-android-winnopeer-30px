@@ -195,9 +195,9 @@ pub struct Config {
     #[serde(default, deserialize_with = "deserialize_string")]
     password: String,
     #[serde(default, deserialize_with = "deserialize_string")]
-    salt: String,
+    pub salt: String,
     #[serde(default, deserialize_with = "deserialize_keypair")]
-    key_pair: KeyPair, // sk, pk
+    pub key_pair: KeyPair, // sk, pk
     #[serde(default, deserialize_with = "deserialize_bool")]
     key_confirmed: bool,
     #[serde(default, deserialize_with = "deserialize_hashmap_string_bool")]
