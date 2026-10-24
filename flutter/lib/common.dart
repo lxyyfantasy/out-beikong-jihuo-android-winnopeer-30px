@@ -921,7 +921,6 @@ class OverlayDialogManager {
                                   child: Text(translate('Cancel'),
                                       style: const TextStyle(
                                           color: MyTheme.accent))))),
-                  ),
                 ])),
         onCancel: showCancel ? cancel : null,
       );
