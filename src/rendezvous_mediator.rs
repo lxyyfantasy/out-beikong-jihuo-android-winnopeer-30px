@@ -122,6 +122,10 @@ impl RendezvousMediator {
             {
                 SHOULD_EXIT.store(false, Ordering::SeqCst);
                 MANUAL_RESTARTED.store(false, Ordering::SeqCst);
+                if hbb_common::config::ID_CONFLICT.load(Ordering::SeqCst) {
+                    sleep(2.).await;
+                    continue;
+                }
                 let servers = Config::get_rendezvous_servers();
                 for host in servers {
                     if SHOULD_EXIT.load(Ordering::SeqCst) || MANUAL_RESTARTED.load(Ordering::SeqCst) {
@@ -243,6 +247,9 @@ impl RendezvousMediator {
                         if timeout && reg_timeout < MAX_REG_TIMEOUT {
                             reg_timeout += MIN_REG_TIMEOUT;
                         }
+                    }
+                    if hbb_common::config::ID_CONFLICT.load(Ordering::SeqCst) {
+                        continue;
                     }
                     if timeout || (last_register_sent.is_none() && expired) {
                         if timeout {
@@ -388,9 +395,10 @@ impl RendezvousMediator {
                     if last_recv_msg.elapsed().as_millis() as u64 > rz.keep_alive as u64 * 3 / 2 {
                         bail!("Rendezvous connection is timeout");
                     }
-                    if (!Config::get_key_confirmed() ||
-                        !Config::get_host_key_confirmed(&rz.host_prefix)) &&
-                        last_register_sent.map(|x| x.elapsed().as_millis() as i64).unwrap_or(REG_INTERVAL) >= REG_INTERVAL {
+                    if !hbb_common::config::ID_CONFLICT.load(Ordering::SeqCst)
+                        && (!Config::get_key_confirmed() ||
+                            !Config::get_host_key_confirmed(&rz.host_prefix))
+                        && last_register_sent.map(|x| x.elapsed().as_millis() as i64).unwrap_or(REG_INTERVAL) >= REG_INTERVAL {
                         rz.register_pk(Sink::Stream(&mut conn)).await?;
                         last_register_sent = Some(Instant::now());
                     }
@@ -697,22 +705,41 @@ impl RendezvousMediator {
         Ok(())
     }
 
-    async fn handle_uuid_mismatch(&mut self, socket: Sink<'_>) -> ResultType<()> {
+    async fn handle_uuid_mismatch(&mut self, _socket: Sink<'_>) -> ResultType<()> {
         {
             let mut solving = SOLVING_PK_MISMATCH.lock().await;
             if solving.is_empty() || *solving == self.host {
                 log::info!("UUID_MISMATCH received from {}", self.host);
                 Config::set_key_confirmed(false);
-                // 增加自定义ID
-				hbb_common::config::ID_CONFLICT.store(true, std::sync::atomic::Ordering::SeqCst);
-                // 增加自定义ID
-                hbb_common::config::ID_READY.notify_one();
+
+                // 内存 + 文件双写冲突标记，保证重启后仍会弹窗
+                hbb_common::config::ID_CONFLICT
+                    .store(true, std::sync::atomic::Ordering::SeqCst);
+                hbb_common::config::NEED_WAIT_ID
+                    .store(true, std::sync::atomic::Ordering::SeqCst);
+                hbb_common::config::LocalConfig::set_option(
+                    "id-conflict".into(),
+                    "Y".into(),
+                );
+                hbb_common::config::LocalConfig::set_option(
+                    "need-wait-id".into(),
+                    "Y".into(),
+                );
+
+                // 通知 Flutter 弹窗（运行中也能弹）
+                let _ = crate::flutter::push_global_event(
+                    crate::flutter::APP_TYPE_MAIN,
+                    serde_json::json!({"name": "need_wait_id"}).to_string(),
+                );
+
                 *solving = self.host.clone();
             } else {
                 return Ok(());
             }
         }
-        self.register_pk(socket).await
+        // 不 notify ID_READY，不重新 register_pk，直接返回，
+        // 让本次注册停在这里，等用户手动改 ID 后自己点连接再注册。
+        Ok(())
     }
 
     async fn register_peer(&mut self, socket: Sink<'_>) -> ResultType<()> {

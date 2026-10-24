@@ -81,6 +81,15 @@ fn initialize(app_dir: &str, custom_client_config: &str) {
         // core_main's init_log does not work for flutter since it is only applied to its load_library in main.c
         hbb_common::init_log(false, "flutter_ffi");
     }
+    // 启动时恢复冲突/等待状态，保证重启后仍会弹窗
+    hbb_common::config::NEED_WAIT_ID.store(
+        hbb_common::config::LocalConfig::get_option("need-wait-id") == "Y",
+        std::sync::atomic::Ordering::SeqCst,
+    );
+    hbb_common::config::ID_CONFLICT.store(
+        hbb_common::config::LocalConfig::get_option("id-conflict") == "Y",
+        std::sync::atomic::Ordering::SeqCst,
+    );
 }
 
 #[inline]
@@ -135,7 +144,8 @@ pub fn session_add_existed_sync(
 }
 
 // 增加自定义ID
-/// Flutter 弹窗确认后调用：写入自定义 ID，清空密钥对，通知 Rust 继续注册
+/// Flutter 弹窗确认后调用：写入自定义 ID，清空密钥对
+/// 注意：不 notify ID_READY，等用户手动发起连接时再注册
 pub fn main_set_custom_id(id: String) {
     if !id.is_empty() && hbb_common::is_valid_custom_id(&id) {
         let mut cfg = config::Config::get();
@@ -143,7 +153,7 @@ pub fn main_set_custom_id(id: String) {
         config::Config::set(cfg);
         log::info!("custom id set: {}", id);
     }
-    hbb_common::config::ID_READY.notify_one();
+    // 不调用 ID_READY.notify_one()，避免自动重连/重注册
 }
 
 pub fn main_check_id_conflict() -> bool {
@@ -152,6 +162,10 @@ pub fn main_check_id_conflict() -> bool {
 
 pub fn main_clear_id_conflict() {
     hbb_common::config::ID_CONFLICT.store(false, std::sync::atomic::Ordering::SeqCst);
+    hbb_common::config::NEED_WAIT_ID.store(false, std::sync::atomic::Ordering::SeqCst);
+    // 同步清持久化，避免重启后残留
+    hbb_common::config::LocalConfig::set_option("id-conflict".into(), "".into());
+    hbb_common::config::LocalConfig::set_option("need-wait-id".into(), "".into());
 }
 
 pub fn main_need_wait_id() -> bool {
