@@ -49,8 +49,6 @@ pub static ID_REGISTERED: AtomicBool = AtomicBool::new(false);
 // 增加自定义ID
 pub static NEED_WAIT_ID: std::sync::atomic::AtomicBool =
     std::sync::atomic::AtomicBool::new(false);
-pub static ID_CONFLICT: std::sync::atomic::AtomicBool =
-    std::sync::atomic::AtomicBool::new(false);
 
 lazy_static::lazy_static! {
     pub static ref ID_READY: tokio::sync::Notify = tokio::sync::Notify::new();

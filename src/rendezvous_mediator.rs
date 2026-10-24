@@ -122,7 +122,7 @@ impl RendezvousMediator {
             {
                 SHOULD_EXIT.store(false, Ordering::SeqCst);
                 MANUAL_RESTARTED.store(false, Ordering::SeqCst);
-                if hbb_common::config::ID_CONFLICT.load(Ordering::SeqCst) {
+                if hbb_common::config::ID_REGISTERED.load(Ordering::SeqCst) {
                     sleep(2.).await;
                     continue;
                 }
@@ -248,7 +248,7 @@ impl RendezvousMediator {
                             reg_timeout += MIN_REG_TIMEOUT;
                         }
                     }
-                    if hbb_common::config::ID_CONFLICT.load(Ordering::SeqCst) {
+                    if hbb_common::config::ID_REGISTERED.load(Ordering::SeqCst) {
                         continue;
                     }
                     if timeout || (last_register_sent.is_none() && expired) {
@@ -403,7 +403,7 @@ impl RendezvousMediator {
                     if last_recv_msg.elapsed().as_millis() as u64 > rz.keep_alive as u64 * 3 / 2 {
                         bail!("Rendezvous connection is timeout");
                     }
-                    if !hbb_common::config::ID_CONFLICT.load(Ordering::SeqCst)
+                    if !hbb_common::config::ID_REGISTERED.load(Ordering::SeqCst)
                         && (!Config::get_key_confirmed() ||
                             !Config::get_host_key_confirmed(&rz.host_prefix))
                         && last_register_sent.map(|x| x.elapsed().as_millis() as i64).unwrap_or(REG_INTERVAL) >= REG_INTERVAL {
@@ -721,14 +721,8 @@ impl RendezvousMediator {
                 Config::set_key_confirmed(false);
 
                 // 内存 + 文件双写冲突标记，保证重启后仍会弹窗
-                hbb_common::config::ID_CONFLICT
-                    .store(true, std::sync::atomic::Ordering::SeqCst);
                 hbb_common::config::NEED_WAIT_ID
                     .store(true, std::sync::atomic::Ordering::SeqCst);
-                hbb_common::config::LocalConfig::set_option(
-                    "id-conflict".into(),
-                    "Y".into(),
-                );
                 hbb_common::config::LocalConfig::set_option(
                     "need-wait-id".into(),
                     "Y".into(),
