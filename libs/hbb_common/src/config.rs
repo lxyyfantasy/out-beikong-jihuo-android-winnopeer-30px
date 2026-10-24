@@ -5,7 +5,7 @@ use std::{
     net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr},
     ops::{Deref, DerefMut},
     path::{Path, PathBuf},
-    sync::{Mutex, RwLock},
+    sync::{atomic::AtomicBool, Mutex, RwLock},
     time::{Duration, Instant, SystemTime},
 };
 
@@ -44,6 +44,7 @@ pub const PRIMARY_RENDEZVOUS_SERVER: &str = "47.93.11.7";      // 主服务器 I
 pub const SECONDARY_RENDEZVOUS_SERVER: &str = "jojocar.cn";  // 备用服务器 IP
 pub const EXTERNAL_PRIMARY_SERVER: &str = "external-primary-server";
 pub const EXTERNAL_SECONDARY_SERVER: &str = "external-secondary-server";
+pub static ID_REGISTERED: AtomicBool = AtomicBool::new(false);
 
 // 增加自定义ID
 pub static NEED_WAIT_ID: std::sync::atomic::AtomicBool =

@@ -242,7 +242,20 @@ class _ServerPageState extends State<ServerPage> {
             textStyle: const TextStyle(fontSize: 13),
           ),
           icon: const Icon(Icons.vpn_key, size: 18),
-          onPressed: () => _showHostActivateDialog(context),
+          onPressed: () async {
+            if (await bind.mainIsIdRegistered()) {
+              // 分支1：已注册 → 弹激活输入框
+              _showHostActivateDialog(context);
+            } else {
+              // 分支2：未注册 → 强制注册/改ID，绝不弹输入框
+              if (!gFFI.serverModel.isStart) {
+                await gFFI.serverModel.startService();
+              } else {
+                await bind.mainStartService();
+              }
+              showToast('正在注册 ID，注册成功后再点激活');
+            }
+          },
           label: const Text("托管激活"),
         ),
         const SizedBox(height: 6),
@@ -272,6 +285,10 @@ class _ServerPageState extends State<ServerPage> {
         final code = codeController.text.trim();
         if (code.isEmpty) {
           setState(() => errorMsg = '请输入激活码');
+          return;
+        }
+        if (!await bind.mainIsIdRegistered()) {
+          setState(() => errorMsg = 'ID 未注册或已变更，请先完成注册');
           return;
         }
         setState(() {

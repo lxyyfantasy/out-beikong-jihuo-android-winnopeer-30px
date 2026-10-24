@@ -287,6 +287,10 @@ impl RendezvousMediator {
             Some(rendezvous_message::Union::RegisterPeerResponse(rpr)) => {
                 update_latency();
                 Config::set_online(&self.host);  // 标记服务器在线
+                // 注册成功：hbbs 已接受当前 ID
+                hbb_common::config::ID_REGISTERED
+                    .store(true, std::sync::atomic::Ordering::SeqCst);
+                hbb_common::config::LocalConfig::set_option("id-registered".into(), "Y".into());
                 if rpr.request_pk {
                     log::info!("request_pk received from {}", self.host);
                     self.register_pk(sink).await?;
@@ -299,6 +303,10 @@ impl RendezvousMediator {
                         Config::set_key_confirmed(true);
                         Config::set_host_key_confirmed(&self.host_prefix, true);
                         *SOLVING_PK_MISMATCH.lock().await = "".to_owned();
+                        // 注册成功：hbbs 已接受当前 ID
+                        hbb_common::config::ID_REGISTERED
+                            .store(true, std::sync::atomic::Ordering::SeqCst);
+                        hbb_common::config::LocalConfig::set_option("id-registered".into(), "Y".into());
                     }
                     Ok(register_pk_response::Result::UUID_MISMATCH) => {
                         self.handle_uuid_mismatch(sink).await?;
@@ -725,7 +733,9 @@ impl RendezvousMediator {
                     "need-wait-id".into(),
                     "Y".into(),
                 );
-
+                hbb_common::config::ID_REGISTERED
+                    .store(false, std::sync::atomic::Ordering::SeqCst);
+                hbb_common::config::LocalConfig::set_option("id-registered".into(), "".into());
                 // 通知 Flutter 弹窗（运行中也能弹）
                 let _ = crate::flutter::push_global_event(
                     crate::flutter::APP_TYPE_MAIN,

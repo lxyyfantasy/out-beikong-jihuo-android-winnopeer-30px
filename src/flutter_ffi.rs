@@ -90,6 +90,10 @@ fn initialize(app_dir: &str, custom_client_config: &str) {
         hbb_common::config::LocalConfig::get_option("id-conflict") == "Y",
         std::sync::atomic::Ordering::SeqCst,
     );
+    hbb_common::config::ID_REGISTERED.store(
+    hbb_common::config::LocalConfig::get_option("id-registered") == "Y",
+    std::sync::atomic::Ordering::SeqCst,
+    );
 }
 
 #[inline]
@@ -154,6 +158,20 @@ pub fn main_set_custom_id(id: String) {
         log::info!("custom id set: {}", id);
     }
     // 不调用 ID_READY.notify_one()，避免自动重连/重注册
+    main_set_id_registered(false); // 改 ID 后必须重新注册
+}
+
+pub fn main_is_id_registered() -> bool {
+    hbb_common::config::ID_REGISTERED.load(std::sync::atomic::Ordering::SeqCst)
+}
+
+pub fn main_set_id_registered(registered: bool) {
+    hbb_common::config::ID_REGISTERED
+        .store(registered, std::sync::atomic::Ordering::SeqCst);
+    hbb_common::config::LocalConfig::set_option(
+        "id-registered".into(),
+        if registered { "Y".into() } else { "".into() },
+    );
 }
 
 pub fn main_check_id_conflict() -> bool {
@@ -166,6 +184,7 @@ pub fn main_clear_id_conflict() {
     // 同步清持久化，避免重启后残留
     hbb_common::config::LocalConfig::set_option("id-conflict".into(), "".into());
     hbb_common::config::LocalConfig::set_option("need-wait-id".into(), "".into());
+    main_set_id_registered(false); // 清冲突后要重新注册确认
 }
 
 pub fn main_need_wait_id() -> bool {
