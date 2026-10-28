@@ -49,8 +49,6 @@ class HomePageState extends State<HomePage> with WidgetsBindingObserver {
     initPages();
     // 增加自定义ID
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      // 增加拉取key
-      unawaited(fetchAndSaveKey());
       await _checkCustomId();
       _checkAccessibilityGlobal();  
     });

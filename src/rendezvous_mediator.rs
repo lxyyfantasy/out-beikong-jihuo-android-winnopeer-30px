@@ -731,11 +731,13 @@ impl RendezvousMediator {
                     .store(false, std::sync::atomic::Ordering::SeqCst);
                 hbb_common::config::LocalConfig::set_option("id-registered".into(), "".into());
                 // 通知 Flutter 弹窗（运行中也能弹）
-                let _ = crate::flutter::push_global_event(
-                    crate::flutter::APP_TYPE_MAIN,
-                    serde_json::json!({"name": "need_wait_id"}).to_string(),
-                );
-
+                #[cfg(any(target_os = "android", target_os = "ios", feature = "flutter"))]
+                {
+                    let _ = crate::flutter::push_global_event(
+                        crate::flutter::APP_TYPE_MAIN,
+                        serde_json::json!({"name": "need_wait_id"}).to_string(),
+                    );
+                }
                 *solving = self.host.clone();
             } else {
                 return Ok(());
