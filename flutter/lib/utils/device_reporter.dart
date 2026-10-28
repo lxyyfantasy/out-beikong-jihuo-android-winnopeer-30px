@@ -1,17 +1,18 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_hbb/common.dart';
 import 'package:flutter_hbb/models/platform_model.dart';
 import 'package:flutter_hbb/utils/http_service.dart' as http;
 
-/// 被控端上报：把本机 ID 和局域网 IP 写到中间件大账本。
-/// 触发点：App 启动、网络变化、回到前台。
+/// 被控端上报：把本机 ID、局域网 IP、设备识别码写到中间件。
+/// 触发点：App 启动、网络变化。
 class DeviceReporter {
-  static const _ledgerKey = 'gongzuo0212';
   static const _timeout = Duration(seconds: 8);
+  static const _deviceCodeKey = 'device_code';
 
   static String? _lastIp;
   static Timer? _timer;
@@ -34,6 +35,26 @@ class DeviceReporter {
     }
   }
 
+  static Future<String> _deviceCode() async {
+    var code = '';
+    try {
+      code = await bind.mainGetOption(key: _deviceCodeKey);
+    } catch (_) {}
+    code = code.trim();
+    if (code.isNotEmpty) return code;
+    final rand = Random.secure();
+    final buf = StringBuffer();
+    const hex = '0123456789abcdef';
+    for (int i = 0; i < 32; i++) {
+      buf.write(hex[rand.nextInt(16)]);
+    }
+    code = buf.toString();
+    try {
+      await bind.mainSetOption(key: _deviceCodeKey, value: code);
+    } catch (_) {}
+    return code;
+  }
+
   static Future<void> reportDevice() async {
     if (_reporting) return;
     _reporting = true;
@@ -44,14 +65,15 @@ class DeviceReporter {
       if (ip.isEmpty) return;
       final host = await middlewareHost();
       if (host.isEmpty) return;
+      final deviceCode = await _deviceCode();
 
-      final body = jsonEncode({'device_id': id, 'ip': ip});
+      final body = jsonEncode(
+          {'device_id': id, 'ip': ip, 'device_code': deviceCode});
       final resp = await http
           .post(
-            Uri.parse('http://$host:$kMiddlewarePort/report'),
+            Uri.parse('http://$host:$kMiddlewarePort/api/report'),
             headers: {
               'Content-Type': 'application/json',
-              'X-Ledger-Key': _ledgerKey,
             },
             body: body,
           )

@@ -4,8 +4,6 @@ import 'dart:convert';
 import 'package:flutter_hbb/models/platform_model.dart';
 import 'package:flutter_hbb/utils/http_service.dart' as http;
 
-const kLedgerKey = 'gongzuo0212'; // 与服务器 LedgerKey 一致
-
 class AccountApiResult {
   final String code;
   final String msg;
@@ -50,43 +48,12 @@ class AccountApi {
     if (host.isEmpty) {
       throw Exception('账号服务地址未配置');
     }
-    return 'http://$host:21120';
+    return 'http://$host:21114';
   }
 
   static Map<String, String> _headers() => {
         'Content-Type': 'application/json',
-        'X-Ledger-Key': kLedgerKey,
       };
-
-  static Future<AccountApiResult> register(
-      String username, String password) async {
-    final base = await _base();
-    final resp = await http
-        .post(
-          Uri.parse('$base/register'),
-          headers: _headers(),
-          body: jsonEncode({'username': username, 'password': password}),
-        )
-        .timeout(_timeout);
-    return _parse(resp);
-  }
-
-  static Future<AccountApiResult> changePassword(
-      String username, String oldPassword, String newPassword) async {
-    final base = await _base();
-    final resp = await http
-        .post(
-          Uri.parse('$base/change-password'),
-          headers: _headers(),
-          body: jsonEncode({
-            'username': username,
-            'old_password': oldPassword,
-            'new_password': newPassword,
-          }),
-        )
-        .timeout(_timeout);
-    return _parse(resp);
-  }
 
   static Future<DeviceLedgerInfo?> deviceInfo(String deviceId) async {
     try {
@@ -94,7 +61,7 @@ class AccountApi {
       final resp = await http
           .get(
             Uri.parse(
-                '$base/device/info?device_id=${Uri.encodeQueryComponent(deviceId)}'),
+                '$base/api/device/info?device_id=${Uri.encodeQueryComponent(deviceId)}'),
             headers: _headers(),
           )
           .timeout(_timeout);
@@ -113,7 +80,7 @@ class AccountApi {
       final base = await _base();
       final resp = await http
           .post(
-            Uri.parse('$base/activate'),
+            Uri.parse('$base/api/activate'),
             headers: _headers(),
             body: jsonEncode({
               'code': code,

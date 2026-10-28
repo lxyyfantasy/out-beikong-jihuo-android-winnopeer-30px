@@ -358,19 +358,16 @@ pub fn check_ws(endpoint: &str) -> String {
 
     let (relay, dst_port) = if endpoint_port == rendezvous_port {
         // rendezvous
-        (false, endpoint_port + 2)
-    } else if endpoint_port == rendezvous_port - 1 {
+        (false, 21118)
+    } else if endpoint_port == 21115 {
         // online
-        (false, endpoint_port + 3)
-    } else if endpoint_port == relay_port || endpoint_port == rendezvous_port + 1 {
+        (false, 21118)
+    } else if endpoint_port == relay_port || endpoint_port == 21117 {
         // relay
-        // https://github.com/rustdesk/rustdesk/blob/6ffbcd1375771f2482ec4810680623a269be70f1/src/rendezvous_mediator.rs#L615
-        // https://github.com/rustdesk/rustdesk-server/blob/235a3c326ceb665e941edb50ab79faa1208f7507/src/relay_server.rs#L83, based on relay port.
-        (true, endpoint_port + 2)
+        (true, 21119)
     } else {
         // fallback relay
-        // for controlling side, relay server is passed from the controlled side, not related to local config.
-        (true, endpoint_port + 2)
+        (true, 21119)
     };
 
     let (address, is_domain) = if crate::is_ip_str(endpoint) {

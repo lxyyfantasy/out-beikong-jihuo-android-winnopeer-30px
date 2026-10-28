@@ -254,7 +254,7 @@ impl Client {
         if hbb_common::is_ip_str(peer) {
             return Ok((
                 (
-                    connect_tcp_local(check_port(peer, RELAY_PORT + 1), None, CONNECT_TIMEOUT)
+                    connect_tcp_local(check_port(peer, 21118), None, CONNECT_TIMEOUT)
                         .await?,
                     true,
                     None,
@@ -3984,7 +3984,7 @@ pub mod peer_online {
         if port == 0 {
             bail!("Invalid server address: {}", rendezvous_server);
         }
-        let online_server = format!("{}:{}", tmp[0], port - 1);
+        let online_server = format!("{}:{}", tmp[0], 21115);
         connect_tcp(online_server, CONNECT_TIMEOUT).await
     }
 

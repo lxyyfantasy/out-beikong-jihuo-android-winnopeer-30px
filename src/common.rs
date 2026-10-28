@@ -627,7 +627,10 @@ async fn test_nat_type_() -> ResultType<bool> {
     log::info!("Testing nat ...");
     let start = std::time::Instant::now();
     let server1 = Config::get_rendezvous_server();
-    let server2 = crate::increase_port(&server1, -1);
+    let server2 = {
+        let host = server1.rsplit_once(':').map(|(h, _)| h).unwrap_or(&server1);
+        format!("{}:21115", host)
+    };
     let mut msg_out = RendezvousMessage::new();
     let serial = Config::get_serial();
     msg_out.set_test_nat_request(TestNatRequest {
@@ -1074,14 +1077,10 @@ fn get_api_server_(api: String, custom: String) -> String {
     }
     let s0 = get_custom_rendezvous_server(custom);
     if !s0.is_empty() {
-        let s = crate::increase_port(&s0, -2);
-        if s == s0 {
-            return format!("http://{}:{}", s, config::RENDEZVOUS_PORT - 2);
-        } else {
-            return format!("http://{}", s);
-        }
+        let host = s0.rsplit_once(':').map(|(h, _)| h).unwrap_or(&s0);
+        return format!("http://{}:21114", host);
     }
-    format!("http://{}:{}", config::PRIMARY_RENDEZVOUS_SERVER, config::RENDEZVOUS_PORT - 2)
+    "https://admin.rustdesk.com".to_owned()
 }
 
 #[inline]

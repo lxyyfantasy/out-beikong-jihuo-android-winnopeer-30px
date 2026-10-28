@@ -106,7 +106,7 @@ pub fn send_wol(id: String) {
 
 #[inline]
 fn get_broadcast_port() -> u16 {
-    (RENDEZVOUS_PORT + 3) as _
+    (21119) as _
 }
 
 fn get_mac(_ip: &IpAddr) -> String {
