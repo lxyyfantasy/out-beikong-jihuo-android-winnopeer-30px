@@ -86,10 +86,6 @@ fn initialize(app_dir: &str, custom_client_config: &str) {
         hbb_common::config::LocalConfig::get_option("need-wait-id") == "Y",
         std::sync::atomic::Ordering::SeqCst,
     );
-    hbb_common::config::ID_REGISTERED.store(
-    hbb_common::config::LocalConfig::get_option("id-registered") == "Y",
-    std::sync::atomic::Ordering::SeqCst,
-    );
 }
 
 #[inline]
@@ -153,8 +149,10 @@ pub fn main_set_custom_id(id: String) {
         config::Config::set(cfg);
         log::info!("custom id set: {}", id);
     }
-    // 不调用 ID_READY.notify_one()，避免自动重连/重注册
-    main_set_id_registered(false); // 改 ID 后必须重新注册
+    main_set_id_registered(false);
+    hbb_common::config::NEED_WAIT_ID.store(false, std::sync::atomic::Ordering::SeqCst);
+    hbb_common::config::LocalConfig::set_option("need-wait-id".into(), "".into());
+    hbb_common::config::ID_READY.notify_one();
 }
 
 pub fn main_is_id_registered() -> bool {

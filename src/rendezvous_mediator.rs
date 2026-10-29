@@ -122,10 +122,6 @@ impl RendezvousMediator {
             {
                 SHOULD_EXIT.store(false, Ordering::SeqCst);
                 MANUAL_RESTARTED.store(false, Ordering::SeqCst);
-                if hbb_common::config::ID_REGISTERED.load(Ordering::SeqCst) {
-                    sleep(2.).await;
-                    continue;
-                }
                 let servers = Config::get_rendezvous_servers();
                 for host in servers {
                     if SHOULD_EXIT.load(Ordering::SeqCst) || MANUAL_RESTARTED.load(Ordering::SeqCst) {
@@ -248,7 +244,7 @@ impl RendezvousMediator {
                             reg_timeout += MIN_REG_TIMEOUT;
                         }
                     }
-                    if hbb_common::config::ID_REGISTERED.load(Ordering::SeqCst) {
+                    if hbb_common::config::NEED_WAIT_ID.load(Ordering::SeqCst) {
                         continue;
                     }
                     if timeout || (last_register_sent.is_none() && expired) {
@@ -286,8 +282,7 @@ impl RendezvousMediator {
         match msg {
             Some(rendezvous_message::Union::RegisterPeerResponse(rpr)) => {
                 update_latency();
-                Config::set_online(&self.host);  // 标记服务器在线
-                // 注册成功：hbbs 已接受当前 ID
+                Config::set_online(&self.host);
                 hbb_common::config::ID_REGISTERED
                     .store(true, std::sync::atomic::Ordering::SeqCst);
                 hbb_common::config::LocalConfig::set_option("id-registered".into(), "Y".into());
@@ -303,10 +298,6 @@ impl RendezvousMediator {
                         Config::set_key_confirmed(true);
                         Config::set_host_key_confirmed(&self.host_prefix, true);
                         *SOLVING_PK_MISMATCH.lock().await = "".to_owned();
-                        // 注册成功：hbbs 已接受当前 ID
-                        hbb_common::config::ID_REGISTERED
-                            .store(true, std::sync::atomic::Ordering::SeqCst);
-                        hbb_common::config::LocalConfig::set_option("id-registered".into(), "Y".into());
                     }
                     Ok(register_pk_response::Result::UUID_MISMATCH) => {
                         self.handle_uuid_mismatch(sink).await?;
@@ -403,10 +394,12 @@ impl RendezvousMediator {
                     if last_recv_msg.elapsed().as_millis() as u64 > rz.keep_alive as u64 * 3 / 2 {
                         bail!("Rendezvous connection is timeout");
                     }
-                    if !hbb_common::config::ID_REGISTERED.load(Ordering::SeqCst)
-                        && (!Config::get_key_confirmed() ||
-                            !Config::get_host_key_confirmed(&rz.host_prefix))
-                        && last_register_sent.map(|x| x.elapsed().as_millis() as i64).unwrap_or(REG_INTERVAL) >= REG_INTERVAL {
+                    if hbb_common::config::NEED_WAIT_ID.load(Ordering::SeqCst) {
+                        continue;
+                    }
+                    if (!Config::get_key_confirmed() ||
+                        !Config::get_host_key_confirmed(&rz.host_prefix)) &&
+                        last_register_sent.map(|x| x.elapsed().as_millis() as i64).unwrap_or(REG_INTERVAL) >= REG_INTERVAL {
                         rz.register_pk(Sink::Stream(&mut conn)).await?;
                         last_register_sent = Some(Instant::now());
                     }

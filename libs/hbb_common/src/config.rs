@@ -53,7 +53,7 @@ pub static NEED_WAIT_ID: std::sync::atomic::AtomicBool =
 lazy_static::lazy_static! {
     pub static ref ID_READY: tokio::sync::Notify = tokio::sync::Notify::new();
 }
-	
+    
 type Size = (i32, i32, i32, i32);
 type KeyPair = (Vec<u8>, Vec<u8>);
 
@@ -606,17 +606,8 @@ impl Config {
                 log::info!("no id and not registered, waiting for flutter to set custom id");
                 // config.id 保持空，不生成随机 ID
             } else {
-                // 已注册过但没有有效 id 的异常情况，仍走随机兜底
-                log::warn!("ID is invalid, generating new one");
-                for _ in 0..3 {
-                    if let Some(id) = Config::gen_id() {
-                        config.id = id;
-                        store = true;
-                        break;
-                    } else {
-                        log::error!("Failed to generate new id");
-                    }
-                }
+                NEED_WAIT_ID.store(true, std::sync::atomic::Ordering::SeqCst);
+                log::info!("no valid id, waiting for flutter to set custom id");
             }
         }
         if store {
@@ -677,7 +668,7 @@ impl Config {
         }
         // 最后统一保存
         config2.store();
-		
+        
         config
     }
 
