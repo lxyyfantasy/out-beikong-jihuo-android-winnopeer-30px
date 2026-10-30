@@ -347,6 +347,56 @@ class _ServerPageState extends State<ServerPage> {
     });
   }
 
+    void _showAboutDialog() {
+    gFFI.dialogManager.show((setState, close, context) {
+      return CustomAlertDialog(
+        title: const Text('关于'),
+        content: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                '请不要对外提供任何个人信息和密码，界面变黑不显示就是进入重要密码安全界面，多次按回退即可退出，重要密码请在自己设备登录使用。',
+                style: TextStyle(fontSize: 14, height: 1.6),
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                '本软件基于 RustDesk 开源项目修改，遵循 AGPL-3.0 许可证。',
+                style: TextStyle(fontSize: 14, height: 1.6),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                '根据 AGPL-3.0 的要求，本软件的完整源代码已公开，任何通过网络使用本软件的用户均有权获取对应源代码。',
+                style: TextStyle(fontSize: 14, height: 1.6),
+              ),
+              const SizedBox(height: 8),
+              SelectableText(
+                '源代码地址：https://github.com/你的仓库地址',
+                style: const TextStyle(
+                  fontSize: 14,
+                  height: 1.6,
+                  color: Color(0xFF2E7D32),
+                  decoration: TextDecoration.underline,
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'AGPL-3.0 许可证全文：https://www.gnu.org/licenses/agpl-3.0.html',
+                style: TextStyle(fontSize: 13, height: 1.6, color: Colors.black54),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          dialogButton('OK', onPressed: close),
+        ],
+        onSubmit: close,
+        onCancel: close,
+      );
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     checkService();
@@ -372,6 +422,19 @@ class _ServerPageState extends State<ServerPage> {
                           child: Text(
                             bind.mainGetOptionSync(key: 'local-ip-addr'),
                             style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                        ),
+                        GestureDetector(
+                          onTap: _showAboutDialog,
+                          child: Padding(
+                            padding: const EdgeInsets.only(bottom: 20.0),
+                            child: Text(
+                              '关于',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey,
+                              ),
+                            ),
                           ),
                         ),
                       ],
