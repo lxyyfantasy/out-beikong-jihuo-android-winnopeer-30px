@@ -157,10 +157,7 @@ impl VideoQoS {
 
     // Get current bitrate ratio with bounds checking
     pub fn ratio(&mut self) -> f32 {
-        if self.ratio < BR_MIN_HIGH_RESOLUTION || self.ratio > BR_MAX {
-            self.ratio = BR_BALANCED;
-        }
-        self.ratio
+        BR_BALANCED // 码率永远固定为平衡档标准值，不升不降
     }
 
     // Check if any user is in recording mode
@@ -176,7 +173,7 @@ impl VideoQoS {
 
     // Check if variable bitrate encoding is supported and enabled
     pub fn in_vbr_state(&self) -> bool {
-        self.abr_config && self.displays.iter().all(|e| e.1.support_changing_quality)
+        false // 禁用码率自适应，码率固定
     }
 }
 
